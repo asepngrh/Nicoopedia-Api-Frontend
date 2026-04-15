@@ -1,0 +1,618 @@
+---
+---
+
+<div class="card response-card">
+
+  <!-- ── Tabs / Header row ── -->
+  <div class="res-header">
+    <div class="res-tabs">
+      <button class="res-tab active" id="tab-pretty">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        Pretty
+      </button>
+      <button class="res-tab" id="tab-raw">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        Raw
+      </button>
+      <button class="res-tab" id="tab-headers">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="9" y1="21" x2="9" y2="9"></line>
+        </svg>
+        Info
+      </button>
+    </div>
+
+    <div class="res-meta" id="res-meta-container" style="display: none;">
+      <span id="badge-status" class="badge"></span>
+      <span id="badge-latency" class="badge badge-latency">—</span>
+      <span id="badge-cache"   class="badge badge-neutral">—</span>
+    </div>
+
+    <div class="res-actions" id="res-actions-container" style="display: none;">
+      <button id="copy-curl-btn" class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.3rem 0.7rem; gap: 0.35rem;">
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 17 10 11 4 5"></polyline>
+          <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+        cURL
+      </button>
+      <button id="copy-json-btn" class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.3rem 0.7rem; gap: 0.35rem;">
+        <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        </svg>
+        JSON
+      </button>
+    </div>
+  </div>
+
+  <!-- ── URL Bar ── -->
+  <div id="endpoint-url-container" class="res-url-bar" style="display: none;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1; overflow: hidden;">
+      <span class="badge badge-success" style="font-size: 0.6rem; flex-shrink: 0;">GET</span>
+      <div class="res-url-text" id="endpoint-url-text"></div>
+    </div>
+    <button id="copy-endpoint-btn" class="btn btn-secondary" style="flex-shrink: 0; font-size: 0.72rem; padding: 0.3rem 0.7rem; gap: 0.35rem;">
+      <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      Copy
+    </button>
+  </div>
+
+  <!-- ── Main Output Area ── -->
+  <div class="res-body" id="res-body-container">
+
+    <!-- Empty State — FIXED: icon constrained to 56px via .state-icon -->
+    <div id="empty-state" class="state-container" style="display: flex;">
+      <div class="empty-icon-wrap">
+        <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          <line x1="11" y1="8" x2="11" y2="14"></line>
+          <line x1="8" y1="11" x2="14" y2="11"></line>
+        </svg>
+      </div>
+      <p>No data yet</p>
+      <p>Select a source and endpoint to start exploring the API</p>
+      <div class="empty-hint">
+        <span class="hint-step">①</span> Pick a source in the sidebar
+        <span class="hint-sep">→</span>
+        <span class="hint-step">②</span> Choose an endpoint
+        <span class="hint-sep">→</span>
+        <span class="hint-step">③</span> Hit <strong>Fetch Data</strong>
+      </div>
+    </div>
+
+    <!-- Skeleton / Loading -->
+    <div id="loading-state" class="skeleton-container" style="display: none;">
+      <div class="skeleton-line" style="width: 55%; height: 14px;"></div>
+      <div class="skeleton-line" style="width: 100%; height: 13px; margin-top: 0.25rem;"></div>
+      <div class="skeleton-line" style="width: 82%; height: 13px;"></div>
+      <div class="skeleton-line" style="width: 68%; height: 13px;"></div>
+      <div class="skeleton-line" style="width: 92%; height: 13px; margin-top: 1rem;"></div>
+      <div class="skeleton-line" style="width: 50%; height: 13px;"></div>
+      <div class="skeleton-line" style="width: 78%; height: 13px;"></div>
+      <div class="skeleton-line" style="width: 95%; height: 13px; margin-top: 1rem;"></div>
+      <div class="skeleton-line" style="width: 60%; height: 13px;"></div>
+      <div class="skeleton-line" style="width: 73%; height: 13px;"></div>
+    </div>
+
+    <!-- JSON Pretty Output -->
+    <pre id="json-pretty" class="json-output-area" style="display: none;"></pre>
+
+    <!-- JSON Raw Output -->
+    <pre id="json-raw" class="json-output-area" style="display: none; color: var(--text-secondary);"></pre>
+
+    <!-- Info Panel Pro -->
+    <div id="tab-headers-content" class="info-panel-pro" style="display: none;">
+
+      <!-- ── Section 1: Request Info ── -->
+      <div class="ip-section" id="ip-section-request">
+        <button class="ip-section-toggle" data-target="ip-section-request">
+          <div class="ip-section-title">
+            <span class="ip-section-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+            </span>
+            Request Info
+          </div>
+          <svg class="ip-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="ip-section-body">
+          <div class="ip-grid">
+
+            <!-- Source -->
+            <div class="ip-card">
+              <div class="ip-card-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                Source
+              </div>
+              <div class="ip-card-value ip-mono" id="ip-source">—</div>
+            </div>
+
+            <!-- Endpoint -->
+            <div class="ip-card ip-card-accent">
+              <div class="ip-card-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path></svg>
+                Endpoint
+              </div>
+              <div class="ip-card-value ip-mono ip-primary" id="ip-endpoint">—</div>
+            </div>
+
+            <!-- Target URL — spans full width -->
+            <div class="ip-card ip-card-full">
+              <div class="ip-card-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                Target URL
+                <button class="ip-copy-btn" id="ip-copy-url-btn" title="Copy URL">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+              </div>
+              <div class="ip-card-value ip-url ip-mono" id="ip-url-value" title="">—</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 2: Response Info ── -->
+      <div class="ip-section" id="ip-section-response">
+        <button class="ip-section-toggle" data-target="ip-section-response">
+          <div class="ip-section-title">
+            <span class="ip-section-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            </span>
+            Response Info
+          </div>
+          <svg class="ip-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="ip-section-body">
+          <div class="ip-grid ip-grid-3">
+
+            <!-- Status -->
+            <div class="ip-card">
+              <div class="ip-card-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Status
+              </div>
+              <div class="ip-card-value" id="ip-status">—</div>
+            </div>
+
+            <!-- Response Time -->
+            <div class="ip-card">
+              <div class="ip-card-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                Response Time
+              </div>
+              <div class="ip-card-value ip-latency" id="ip-latency">—</div>
+            </div>
+
+            <!-- Cache -->
+            <div class="ip-card">
+              <div class="ip-card-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                Cache
+              </div>
+              <div class="ip-card-value" id="ip-cache">—</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 3: Metadata ── -->
+      <div class="ip-section" id="ip-section-meta">
+        <button class="ip-section-toggle" data-target="ip-section-meta">
+          <div class="ip-section-title">
+            <span class="ip-section-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </span>
+            Metadata
+          </div>
+          <svg class="ip-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="ip-section-body">
+          <div class="ip-grid">
+
+            <!-- Timestamp -->
+            <div class="ip-card ip-card-full">
+              <div class="ip-card-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Timestamp
+              </div>
+              <div class="ip-card-value ip-mono" id="ip-timestamp">—</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- hidden backwards-compat table -->
+      <table style="display:none;"><tbody id="info-table-body"></tbody></table>
+
+    </div>
+
+  </div><!-- /.res-body -->
+
+</div><!-- /.response-card -->
+
+<style>
+  /* ── Ensure card fills available space ── */
+  .response-card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Empty state hint bar ── */
+  .empty-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(14,165,233,0.06);
+    border: 1px solid rgba(14,165,233,0.12);
+    flex-shrink: 0;
+  }
+
+  .empty-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    background: rgba(14,165,233,0.05);
+    border: 1px solid rgba(14,165,233,0.1);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 1.25rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .hint-step {
+    color: var(--accent-primary);
+    font-weight: 700;
+  }
+
+  .hint-sep {
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+
+  /* ── Old table styles (no longer needed, kept for safety) ── */
+  #info-table { display: none; }
+
+  /* ════════════════════════════════════════════
+     INFO PANEL PRO
+  ════════════════════════════════════════════ */
+
+  .info-panel-pro {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 1.25rem;
+    gap: 0.75rem;
+    animation: fadeInUp 0.3s ease-out forwards;
+  }
+
+  /* ── Section container ─────────────────────── */
+  .ip-section {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: border-color var(--transition-fast);
+  }
+
+  .ip-section:hover {
+    border-color: rgba(14,165,233,0.2);
+  }
+
+  /* ── Section toggle button ─────────────────── */
+  .ip-section-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1.125rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-main);
+    transition: background var(--transition-fast);
+  }
+
+  .ip-section-toggle:hover {
+    background: rgba(14,165,233,0.04);
+  }
+
+  .ip-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .ip-section-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: rgba(14,165,233,0.08);
+    border-radius: 6px;
+    color: var(--accent-primary);
+    flex-shrink: 0;
+  }
+
+  .ip-section-icon svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .ip-chevron {
+    width: 14px !important;
+    height: 14px !important;
+    color: var(--text-muted);
+    transition: transform var(--transition-smooth);
+    flex-shrink: 0;
+  }
+
+  .ip-section.is-collapsed .ip-chevron {
+    transform: rotate(-90deg);
+  }
+
+  /* ── Section body ──────────────────────────── */
+  .ip-section-body {
+    padding: 0 1.125rem 1.125rem;
+    transition: all var(--transition-smooth);
+  }
+
+  .ip-section.is-collapsed .ip-section-body {
+    display: none;
+  }
+
+  /* ── Grid layouts ──────────────────────────── */
+  .ip-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .ip-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* ── Info card ─────────────────────────────── */
+  .ip-card {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    transition: all var(--transition-fast);
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ip-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(14,165,233,0.15), transparent);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+  }
+
+  .ip-card:hover {
+    border-color: rgba(14,165,233,0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .ip-card:hover::before {
+    opacity: 1;
+  }
+
+  /* accent variant — Endpoint card */
+  .ip-card-accent {
+    border-color: rgba(14,165,233,0.18);
+    background: rgba(14,165,233,0.04);
+  }
+
+  /* full-width span */
+  .ip-card-full {
+    grid-column: 1 / -1;
+  }
+
+  /* ── Label ─────────────────────────────────── */
+  .ip-card-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    user-select: none;
+  }
+
+  .ip-card-label svg {
+    width: 11px !important;
+    height: 11px !important;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+
+  /* ── Value ─────────────────────────────────── */
+  .ip-card-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  /* monospace */
+  .ip-mono {
+    font-family: var(--font-mono);
+    font-size: 0.815rem;
+  }
+
+  /* primary highlight — used for Endpoint */
+  .ip-primary {
+    color: var(--accent-primary);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  /* URL value — truncate safely */
+  .ip-url {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--accent-hover);
+    opacity: 0.85;
+    font-size: 0.78rem;
+    display: block;
+  }
+
+  /* latency value */
+  .ip-latency {
+    color: #fbbf24;
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  /* ── Status badge inside ip-card ───────────── */
+  .ip-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 99px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    width: fit-content;
+  }
+
+  .ip-status-badge.success {
+    background: rgba(16,185,129,0.12);
+    color: #34d399;
+    border: 1px solid rgba(16,185,129,0.25);
+  }
+
+  .ip-status-badge.error {
+    background: rgba(239,68,68,0.12);
+    color: #f87171;
+    border: 1px solid rgba(239,68,68,0.25);
+  }
+
+  /* ── Cache badge inside ip-card ────────────── */
+  .ip-cache-hit {
+    color: #34d399;
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+
+  .ip-cache-miss {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  /* ── Copy button inside label ──────────────── */
+  .ip-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .ip-copy-btn svg {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  .ip-copy-btn:hover {
+    background: rgba(14,165,233,0.1);
+    border-color: rgba(14,165,233,0.3);
+    color: var(--accent-primary);
+  }
+
+  /* ── Responsive ─────────────────────────────── */
+  @media (max-width: 640px) {
+    .ip-grid,
+    .ip-grid-3 {
+      grid-template-columns: 1fr;
+    }
+    .ip-card-full {
+      grid-column: 1;
+    }
+  }
+</style>
+
+<script>
+  // ── Collapsible section toggles ──────────────────────
+  document.querySelectorAll('.ip-section-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const section = btn.closest('.ip-section');
+      section.classList.toggle('is-collapsed');
+    });
+  });
+
+  // ── Copy URL button ───────────────────────────────────
+  const ipCopyUrlBtn = document.getElementById('ip-copy-url-btn');
+  const ipUrlValue   = document.getElementById('ip-url-value');
+
+  ipCopyUrlBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const url = ipUrlValue?.textContent?.trim();
+    if (!url || url === '—') return;
+    navigator.clipboard.writeText(url).then(() => {
+      const orig = ipCopyUrlBtn.innerHTML;
+      ipCopyUrlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      ipCopyUrlBtn.style.color = 'var(--success-color)';
+      setTimeout(() => {
+        ipCopyUrlBtn.innerHTML = orig;
+        ipCopyUrlBtn.style.color = '';
+      }, 1600);
+    });
+  });
+</script>

@@ -1,17 +1,823 @@
 ---
-
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
+import EndpointSelector from '../components/EndpointSelector.astro';
+import ResponseViewer from '../components/ResponseViewer.astro';
+import HistoryPanel from '../components/HistoryPanel.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="NicoopediaBASE - Premium API Explorer Dashboard for anime, comic, and novel APIs." />
+    <meta name="generator" content={Astro.generator} />
+    <title>NicoopediaBASE — API Explorer</title>
+  </head>
+  <body>
+    <div class="app-container">
+      <Header />
+      <div class="app-body">
+        <Sidebar />
+        <main class="main-workspace">
+          <EndpointSelector />
+          <ResponseViewer />
+        </main>
+      </div>
+    </div>
+    <!-- History drawer lives outside app-container so it overlays all content -->
+    <HistoryPanel />
+
+    <script type="module">
+      import { sourcesConfig } from '/src/utils/sources.js';
+      import { fetchProxyData } from '/src/utils/api.js';
+      import { resolveExample, extractExampleHint } from '/src/utils/examples.js';
+
+      // ═══════════════════════════════════════════
+      // STATE
+      // ═══════════════════════════════════════════
+      let currentSourceId    = null;
+      let currentSubSourceId = null;
+      let currentEndpointId  = null;
+      let rawJsonData        = null;
+      let lastTargetUrl      = '';
+      let isManualMode       = false;
+      let currentExamplePath = null;  // resolved example for current endpoint
+      let requestHistory     = JSON.parse(localStorage.getItem('nicoo-history') || '[]');
+      const MAX_HISTORY = 20;
+
+      // ═══════════════════════════════════════════
+      // ELEMENT REFS
+      // ═══════════════════════════════════════════
+      const sourceBtns         = document.querySelectorAll('.source-item');
+      const subsourceContainer = document.getElementById('subsource-container');
+      const subsourceSelect    = document.getElementById('subsource-select');
+      const endpointSelect     = document.getElementById('endpoint-select');
+      const queryContainer     = document.getElementById('query-container');
+      const queryLabel         = document.getElementById('query-label');
+      const queryInput         = document.getElementById('query-input');
+      const fetchBtn           = document.getElementById('fetch-btn');
+      const exampleBar         = document.getElementById('example-bar');
+      const examplePathEl      = document.getElementById('example-path');
+      const modeToggleBtn      = document.getElementById('mode-toggle-btn');
+      const modeToggleLabel    = document.getElementById('mode-toggle-label');
+
+      const vEmpty     = document.getElementById('empty-state');
+      const vLoading   = document.getElementById('loading-state');
+      const vMeta      = document.getElementById('res-meta-container');
+      const vActions   = document.getElementById('res-actions-container');
+      const vUrlBar    = document.getElementById('endpoint-url-container');
+      const vUrlText   = document.getElementById('endpoint-url-text');
+      const vPretty    = document.getElementById('json-pretty');
+      const vRaw       = document.getElementById('json-raw');
+      const vInfoPanel = document.getElementById('tab-headers-content');
+      const vInfoBody  = document.getElementById('info-table-body');
+
+      const badgeStatus  = document.getElementById('badge-status');
+      const badgeLatency = document.getElementById('badge-latency');
+      const badgeCache   = document.getElementById('badge-cache');
+
+      const tabPretty  = document.getElementById('tab-pretty');
+      const tabRaw     = document.getElementById('tab-raw');
+      const tabHeaders = document.getElementById('tab-headers');
+
+      const copyUrlBtn  = document.getElementById('copy-endpoint-btn');
+      const copyJsonBtn = document.getElementById('copy-json-btn');
+      const copyCurlBtn = document.getElementById('copy-curl-btn');
+
+      // ═══════════════════════════════════════════
+      // THEME
+      // ═══════════════════════════════════════════
+      const htmlEl      = document.documentElement;
+      const themeToggle = document.getElementById('theme-toggle');
+      const moonIcon    = document.getElementById('moon-icon');
+      const sunIcon     = document.getElementById('sun-icon');
+
+      function setTheme(theme) {
+        htmlEl.setAttribute('data-theme', theme);
+        localStorage.setItem('nicoobase-theme', theme);
+        if (theme === 'dark') {
+          moonIcon.style.display = 'block';
+          sunIcon.style.display  = 'none';
+        } else {
+          moonIcon.style.display = 'none';
+          sunIcon.style.display  = 'block';
+        }
+      }
+      setTheme(localStorage.getItem('nicoobase-theme') || 'dark');
+      themeToggle?.addEventListener('click', () => {
+        setTheme(htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      });
+
+      // ═══════════════════════════════════════════
+      // SYNTAX HIGHLIGHT
+      // ═══════════════════════════════════════════
+      function syntaxHighlight(jsonObj) {
+        let json = JSON.stringify(jsonObj, null, 2);
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(
+          /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+          (match) => {
+            let cls = 'json-number';
+            if (/^"/.test(match)) {
+              cls = /:$/.test(match) ? 'json-key' : 'json-string';
+            } else if (/true|false/.test(match)) {
+              cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+              cls = 'json-null';
+            }
+            return `<span class="${cls}">${match}</span>`;
+          }
+        );
+      }
+
+      // ═══════════════════════════════════════════
+      // ENDPOINT RENDERING (example-aware)
+      // ═══════════════════════════════════════════
+      function getResolvedFetchSource() {
+        const src = sourcesConfig.find(s => s.id === currentSourceId);
+        let fetchSource = currentSourceId;
+        if (currentSubSourceId && src?.subSources) {
+          const sub = src.subSources.find(s => s.id === currentSubSourceId);
+          if (sub) fetchSource = sub.fetchSource || sub.id;
+        } else if (src) {
+          fetchSource = src.fetchSource || src.id;
+        }
+        return fetchSource;
+      }
+
+      function getCurrentEndpoints() {
+        const src = sourcesConfig.find(s => s.id === currentSourceId);
+        if (!src) return [];
+        if (currentSubSourceId && src.subSources) {
+          const sub = src.subSources.find(s => s.id === currentSubSourceId);
+          return sub?.endpoints || [];
+        }
+        return src.endpoints || [];
+      }
+
+      function renderEndpoints(endpointsArray) {
+        endpointSelect.innerHTML = '<option value="" disabled selected>Select an endpoint…</option>';
+        currentEndpointId = null;
+        currentExamplePath = null;
+        exampleBar.style.display = 'none';
+        queryContainer.style.display = 'none';
+        queryInput.value = '';
+        fetchBtn.disabled = true;
+        if (!endpointsArray) return;
+
+        const fetchSource = getResolvedFetchSource();
+
+        endpointsArray.forEach(ep => {
+          const opt = document.createElement('option');
+          opt.value = ep.id;
+
+          // Build label with example hint for parameterized endpoints
+          const example = resolveExample(fetchSource, ep);
+          const hint = extractExampleHint(example);
+          if (ep.hasQuery && hint) {
+            opt.textContent = `${ep.name}  (e.g. ${hint})`;
+          } else {
+            opt.textContent = ep.name;
+          }
+
+          opt.dataset.hasQuery     = ep.hasQuery ?? false;
+          opt.dataset.queryParam   = ep.queryParam ?? '';
+          opt.dataset.isRouteParam = ep.isRouteParam ?? false;
+          opt.dataset.originalRoute = ep.originalRoute ?? '';
+          opt.dataset.example      = example;
+          endpointSelect.appendChild(opt);
+        });
+      }
+
+      // ═══════════════════════════════════════════
+      // SIDEBAR CLICK — SELECT SOURCE
+      // ═══════════════════════════════════════════
+      sourceBtns.forEach(btn => {
+        btn.addEventListener('click', e => {
+          sourceBtns.forEach(b => b.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+
+          currentSourceId = e.currentTarget.dataset.source;
+          const src = sourcesConfig.find(s => s.id === currentSourceId);
+          if (!src) return;
+
+          if (src.subSources && src.subSources.length > 0) {
+            subsourceContainer.style.display = 'flex';
+            subsourceSelect.innerHTML = '';
+            src.subSources.forEach(sub => {
+              const opt = document.createElement('option');
+              opt.value = sub.id;
+              opt.textContent = sub.name;
+              subsourceSelect.appendChild(opt);
+            });
+            currentSubSourceId = src.subSources[0].id;
+            renderEndpoints(src.subSources[0].endpoints);
+          } else {
+            subsourceContainer.style.display = 'none';
+            subsourceSelect.innerHTML = '';
+            currentSubSourceId = null;
+            renderEndpoints(src.endpoints);
+          }
+
+          // Restore last-used endpoint for this source
+          const saved = JSON.parse(localStorage.getItem('nicoo-last') || '{}');
+          if (saved[currentSourceId]) {
+            endpointSelect.value = saved[currentSourceId];
+            endpointSelect.dispatchEvent(new Event('change'));
+          }
+        });
+      });
+
+      // ═══════════════════════════════════════════
+      // SUB-SOURCE CHANGE
+      // ═══════════════════════════════════════════
+      subsourceSelect.addEventListener('change', e => {
+        currentSubSourceId = e.target.value;
+        const src = sourcesConfig.find(s => s.id === currentSourceId);
+        if (src?.subSources) {
+          const sub = src.subSources.find(s => s.id === currentSubSourceId);
+          if (sub) renderEndpoints(sub.endpoints);
+        }
+      });
+
+      // ═══════════════════════════════════════════
+      // ENDPOINT CHANGE (example-based)
+      // ═══════════════════════════════════════════
+      endpointSelect.addEventListener('change', e => {
+        currentEndpointId = e.target.value;
+        const opt = e.target.options[e.target.selectedIndex];
+        const hasQuery = opt.dataset.hasQuery === 'true';
+        const example = opt.dataset.example || '';
+
+        // Store the resolved example path for this endpoint
+        currentExamplePath = example;
+
+        if (hasQuery) {
+          // Show example bar with resolved path
+          exampleBar.style.display = 'flex';
+          examplePathEl.textContent = example;
+          
+          // Clear and regenerate dynamic inputs for parameters
+          queryContainer.innerHTML = '';
+          const paramsList = (opt.dataset.queryParam || '').split(',').map(p => p.trim()).filter(Boolean);
+          
+          paramsList.forEach(param => {
+            const wrap = document.createElement('div');
+            wrap.style.display = 'flex';
+            wrap.style.alignItems = 'center';
+            wrap.style.gap = '0.75rem';
+            wrap.style.flex = '1 1 200px'; // allow shrinking, growing, and wrap at 200px
+            
+            wrap.innerHTML = `
+              <label class="input-label" style="min-width: fit-content; flex-shrink: 0; text-transform: uppercase;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>${param}</span>
+              </label>
+              <input type="text" class="input-base param-input" data-param="${param}" placeholder="Enter ${param}…" autocomplete="off" spellcheck="false" style="flex: 1; min-width: 0;" />
+            `;
+            queryContainer.appendChild(wrap);
+          });
+
+          // If in manual mode, also show manual input
+          if (isManualMode) {
+            queryContainer.style.display = 'flex';
+            queryContainer.style.flexDirection = 'row';
+            queryContainer.style.flexWrap = 'wrap';
+          } else {
+            queryContainer.style.display = 'none';
+          }
+        } else {
+          // Static endpoint — no params, no example bar needed
+          exampleBar.style.display = 'none';
+          queryContainer.style.display = 'none';
+          currentExamplePath = example;
+        }
+
+        fetchBtn.disabled = false;
+
+        // Persist last-used endpoint per source
+        const saved = JSON.parse(localStorage.getItem('nicoo-last') || '{}');
+        saved[currentSourceId] = currentEndpointId;
+        localStorage.setItem('nicoo-last', JSON.stringify(saved));
+      });
+
+      // ═══════════════════════════════════════════
+      // AUTO/MANUAL MODE TOGGLE
+      // ═══════════════════════════════════════════
+      modeToggleBtn?.addEventListener('click', () => {
+        isManualMode = !isManualMode;
+        modeToggleBtn.classList.toggle('is-manual', isManualMode);
+        modeToggleLabel.textContent = isManualMode ? 'Auto' : 'Manual';
+
+        if (isManualMode) {
+          queryContainer.style.display = 'flex';
+          queryContainer.style.flexDirection = 'row';
+          queryContainer.style.flexWrap = 'wrap';
+        } else {
+          queryContainer.style.display = 'none';
+          queryContainer.querySelectorAll('.param-input').forEach(i => i.value = '');
+        }
+      });
+
+      // Hit Enter to fetch via Event Delegation on container
+      queryContainer.addEventListener('keydown', e => {
+        if (e.target.classList.contains('param-input') && e.key === 'Enter' && !fetchBtn.disabled) {
+          fetchBtn.click();
+        }
+      });
+
+      // ═══════════════════════════════════════════
+      // VIEWER HELPERS
+      // ═══════════════════════════════════════════
+      function resetViewer() {
+        vEmpty.style.display     = 'none';
+        vLoading.style.display   = 'flex';
+        vPretty.style.display    = 'none';
+        vRaw.style.display       = 'none';
+        vInfoPanel.style.display = 'none';
+        vMeta.style.display      = 'none';
+        vActions.style.display   = 'none';
+        vUrlBar.style.display    = 'none';
+      }
+
+      function activateTab(tab) {
+        [tabPretty, tabRaw, tabHeaders].forEach(t => t?.classList.remove('active'));
+        vPretty.style.display    = 'none';
+        vRaw.style.display       = 'none';
+        vInfoPanel.style.display = 'none';
+
+        if (tab === 'pretty') {
+          tabPretty?.classList.add('active');
+          vPretty.style.display = 'block';
+          if (rawJsonData !== null) vPretty.innerHTML = syntaxHighlight(rawJsonData);
+        } else if (tab === 'raw') {
+          tabRaw?.classList.add('active');
+          vRaw.style.display = 'block';
+          vRaw.textContent = JSON.stringify(rawJsonData, null, 2);
+        } else if (tab === 'headers') {
+          tabHeaders?.classList.add('active');
+          vInfoPanel.style.display = 'block';
+        }
+      }
+
+      tabPretty?.addEventListener('click',  () => activateTab('pretty'));
+      tabRaw?.addEventListener('click',     () => activateTab('raw'));
+      tabHeaders?.addEventListener('click', () => activateTab('headers'));
+
+      // ═══════════════════════════════════════════
+      // SHOW OUTPUT
+      // ═══════════════════════════════════════════
+      function showOutput(result, source, endpoint) {
+        vLoading.style.display = 'none';
+        vMeta.style.display    = 'flex';
+        vActions.style.display = 'flex';
+        vUrlBar.style.display  = 'flex';
+        vUrlText.textContent   = result.targetUrl || '—';
+        lastTargetUrl = result.targetUrl || '';
+
+        // Latency
+        const dur = parseFloat(result.duration) || 0;
+        badgeLatency.textContent = `⚡ ${dur}ms`;
+        badgeLatency.className   = 'badge badge-latency';
+
+        // Cache HIT/MISS
+        const isCached = typeof result.duration === 'string' && result.duration.includes('cached');
+        badgeCache.textContent = isCached ? '🔥 HIT' : '💨 MISS';
+        badgeCache.className   = isCached ? 'badge badge-success' : 'badge badge-neutral';
+
+        // Status
+        if (result.success) {
+          badgeStatus.textContent = '● 200 OK';
+          badgeStatus.className   = 'badge badge-success';
+          rawJsonData = result.data;
+        } else {
+          badgeStatus.textContent = '● Error';
+          badgeStatus.className   = 'badge badge-error';
+          rawJsonData = {
+            success: false,
+            error:   result.error,
+            details: result.details || 'Check logs',
+            hint:    result.error?.includes('Circuit')
+              ? '⚠️ Upstream under load — wait 30s & retry'
+              : '💡 Make sure the backend Cloudflare Worker is running',
+          };
+        }
+
+        // Info Panel Pro — populate fields
+        const ipSource    = document.getElementById('ip-source');
+        const ipEndpoint  = document.getElementById('ip-endpoint');
+        const ipUrlVal    = document.getElementById('ip-url-value');
+        const ipStatus    = document.getElementById('ip-status');
+        const ipLatency   = document.getElementById('ip-latency');
+        const ipCache     = document.getElementById('ip-cache');
+        const ipTimestamp = document.getElementById('ip-timestamp');
+        const ipPanel     = document.getElementById('tab-headers-content');
+
+        if (ipSource)    ipSource.textContent    = source;
+        if (ipEndpoint)  ipEndpoint.textContent  = endpoint;
+        if (ipUrlVal)    ipUrlVal.textContent     = result.targetUrl || '—';
+        if (ipUrlVal)    ipUrlVal.title           = result.targetUrl || '—';
+
+        if (ipStatus) {
+          const ok = result.success;
+          ipStatus.innerHTML = `<span class="ip-status-badge ${ok ? 'success' : 'error'}">${ok ? '● 200 OK' : '● Error'}</span>`;
+        }
+
+        if (ipLatency)   ipLatency.textContent   = `⚡ ${dur}ms`;
+
+        if (ipCache) {
+          ipCache.innerHTML = isCached
+            ? `<span class="ip-cache-hit">🔥 HIT <small style="font-weight:400;opacity:0.7">edge cached</small></span>`
+            : `<span class="ip-cache-miss">💨 MISS <small style="font-weight:400;opacity:0.7">fresh fetch</small></span>`;
+        }
+
+        if (ipTimestamp) ipTimestamp.textContent = new Date().toLocaleString();
+
+        // Trigger a subtle re-entry animation to signal new data
+        if (ipPanel) {
+          ipPanel.style.animation = 'none';
+          void ipPanel.offsetHeight; // force reflow
+          ipPanel.style.animation = '';
+        }
+
+        // Keep legacy table rows (hidden, harmless backwards-compat)
+        const rows = [
+          ['Source',         source],
+          ['Endpoint',       endpoint],
+          ['Target URL',     result.targetUrl || '—'],
+          ['Status',         result.success ? '✅ Success' : '❌ Error'],
+          ['Response Time',  `${dur}ms`],
+          ['Cache',          isCached ? 'HIT (edge cached)' : 'MISS (fresh fetch)'],
+          ['Timestamp',      new Date().toLocaleString()],
+        ];
+        vInfoBody.innerHTML = rows.map(([k, v]) =>
+          `<tr><td>${k}</td><td>${v}</td></tr>`
+        ).join('');
+
+        activateTab('pretty');
+
+        // Record in history (store replay-able data)
+        pushHistory({
+          source, endpoint,
+          duration: `${dur}ms`,
+          url: result.targetUrl,
+          success: result.success,
+          // Replay data
+          fetchSource: lastFetchSource,
+          params: lastFetchParams,
+          isRoute: lastFetchIsRoute,
+          examplePath: lastFetchExamplePath,
+        });
+      }
+
+      // ═══════════════════════════════════════════
+      // FETCH — example-based with manual override
+      // ═══════════════════════════════════════════
+      let lastFetchSource = null;
+      let lastFetchParams = {};
+      let lastFetchIsRoute = false;
+      let lastFetchExamplePath = null;
+
+      fetchBtn.addEventListener('click', async () => {
+        if (!currentSourceId || !currentEndpointId) return;
+
+        // Show spinner in button
+        fetchBtn.disabled = true;
+        const origHTML = fetchBtn.innerHTML;
+        fetchBtn.innerHTML = '<div class="spinner"></div>';
+        resetViewer();
+
+        try {
+          const opt         = endpointSelect.options[endpointSelect.selectedIndex];
+          const hasQuery    = opt.dataset.hasQuery === 'true';
+          const isRoute     = opt.dataset.isRouteParam === 'true';
+          const examplePath = opt.dataset.example || '';
+          let params = {};
+          let useExamplePath = null;
+
+          // ── Decide what to fetch ──
+          if (hasQuery && isManualMode) {
+            // MANUAL MODE: user typed a custom value
+            let hasAnyVal = false;
+            queryContainer.querySelectorAll('.param-input').forEach(input => {
+                const key = input.dataset.param;
+                let val = input.value.trim();
+                // 💡 As requested by user: fallback to '1' for page if empty
+                if (key === 'page' && !val) val = '1';
+                
+                if (val) {
+                    params[key] = val;
+                    hasAnyVal = true;
+                }
+            });
+          } else if (hasQuery && examplePath) {
+            // AUTO MODE: use pre-resolved example path directly
+            useExamplePath = examplePath;
+          }
+          // For static endpoints (no params), both params and useExamplePath stay empty/null
+
+          // Resolve which source ID to pass to the proxy
+          const fetchSource = getResolvedFetchSource();
+
+          // Store for replay
+          lastFetchSource = fetchSource;
+          lastFetchParams = useExamplePath ? {} : { ...params };
+          lastFetchIsRoute = useExamplePath ? false : isRoute;
+          lastFetchExamplePath = useExamplePath;
+
+          let data;
+          if (useExamplePath) {
+            // Fetch using the full example path (no param interpolation needed)
+            const cleanPath = useExamplePath.replace(/^\/+/, '');
+            data = await fetchProxyData(fetchSource, cleanPath, {}, false);
+          } else {
+            data = await fetchProxyData(fetchSource, currentEndpointId, params, isRoute);
+          }
+          showOutput(data, fetchSource, currentEndpointId);
+
+        } catch (err) {
+          showOutput(
+            { success: false, error: err.message, duration: '0', targetUrl: '' },
+            currentSourceId,
+            currentEndpointId
+          );
+        } finally {
+          fetchBtn.innerHTML = origHTML;
+          fetchBtn.disabled  = false;
+        }
+      });
+
+      // ═══════════════════════════════════════════
+      // COPY ACTIONS with flash feedback
+      // ═══════════════════════════════════════════
+      function flashBtn(btn, label = '✓ Copied!') {
+        const orig = btn.innerHTML;
+        btn.textContent = label;
+        btn.style.opacity = '0.6';
+        setTimeout(() => { btn.innerHTML = orig; btn.style.opacity = '1'; }, 1800);
+      }
+
+      copyUrlBtn?.addEventListener('click', () => {
+        navigator.clipboard.writeText(vUrlText.textContent);
+        flashBtn(copyUrlBtn);
+      });
+
+      copyJsonBtn?.addEventListener('click', () => {
+        navigator.clipboard.writeText(JSON.stringify(rawJsonData, null, 2));
+        flashBtn(copyJsonBtn);
+      });
+
+      copyCurlBtn?.addEventListener('click', () => {
+        const curl = `curl -X GET "${lastTargetUrl}" \\\n  -H "X-Sankaa-Key: YOUR_KEY" \\\n  -H "Accept: application/json"`;
+        navigator.clipboard.writeText(curl);
+        flashBtn(copyCurlBtn);
+      });
+
+      // ═══════════════════════════════════════════
+      // HISTORY DRAWER — TOGGLE
+      // ═══════════════════════════════════════════
+      const historyDrawer   = document.getElementById('history-drawer');
+      const historyToggle   = document.getElementById('history-toggle-btn');
+      const historyClose    = document.getElementById('history-close-btn');
+      const historyBackdrop = document.getElementById('history-backdrop');
+      const historyCountBadge = document.getElementById('history-count-badge');
+      const historyList     = document.getElementById('history-list');
+      const historyEmpty    = document.getElementById('history-empty');
+      const clearHistBtn    = document.getElementById('clear-history-btn');
+
+      let historyOpen = false;
+      let activeHistoryIndex = -1;
+
+      function openHistoryDrawer() {
+        historyOpen = true;
+        historyDrawer.classList.add('is-open');
+        historyToggle.classList.add('is-open');
+        historyBackdrop.classList.add('is-visible');
+      }
+
+      function closeHistoryDrawer() {
+        historyOpen = false;
+        historyDrawer.classList.remove('is-open');
+        historyToggle.classList.remove('is-open');
+        historyBackdrop.classList.remove('is-visible');
+      }
+
+      historyToggle?.addEventListener('click', () => {
+        historyOpen ? closeHistoryDrawer() : openHistoryDrawer();
+      });
+      historyClose?.addEventListener('click', closeHistoryDrawer);
+      historyBackdrop?.addEventListener('click', closeHistoryDrawer);
+
+      // ═══════════════════════════════════════════
+      // REQUEST HISTORY — RENDER
+      // ═══════════════════════════════════════════
+      function formatTs(ts) {
+        if (!ts) return '';
+        try {
+          const d = new Date(ts);
+          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } catch { return ''; }
+      }
+
+      function renderHistory() {
+        const items = requestHistory.slice(0, MAX_HISTORY);
+
+        // Update count badge
+        if (items.length > 0) {
+          historyCountBadge.textContent = items.length;
+          historyCountBadge.style.display = 'flex';
+        } else {
+          historyCountBadge.style.display = 'none';
+        }
+
+        if (items.length === 0) {
+          historyEmpty.style.display = 'flex';
+          historyList.style.display  = 'none';
+          historyList.innerHTML = '';
+          return;
+        }
+
+        historyEmpty.style.display = 'none';
+        historyList.style.display  = 'flex';
+        historyList.style.flexDirection = 'column';
+
+        // Group by source
+        const groups = {};
+        items.forEach((h, i) => {
+          if (!groups[h.source]) groups[h.source] = [];
+          groups[h.source].push({ ...h, idx: i });
+        });
+
+        historyList.innerHTML = Object.entries(groups).map(([source, entries]) => `
+          <div class="history-group">
+            <div class="history-group-title">${source}</div>
+            ${entries.map(h => `
+              <div
+                class="history-card${h.idx === activeHistoryIndex ? ' is-active' : ''}"
+                data-index="${h.idx}"
+                title="${h.endpoint}"
+              >
+                <div class="hc-top">
+                  <span class="hc-method">GET</span>
+                  <span class="hc-endpoint">${h.endpoint}</span>
+                  <span class="badge ${h.success ? 'badge-success' : 'badge-error'}" style="font-size:0.62rem; flex-shrink:0;">${h.success ? '✓ OK' : '✕ ERR'}</span>
+                </div>
+                <div class="hc-bottom">
+                  <span class="hc-source">${h.source}</span>
+                  <span class="hc-spacer"></span>
+                  <span class="hc-time">⚡ ${h.duration}</span>
+                  ${h.ts ? `<span class="hc-ts">${formatTs(h.ts)}</span>` : ''}
+                </div>
+                <div class="hc-hover-actions">
+                  <button class="hc-action-btn hc-replay-btn" data-replay-index="${h.idx}">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <span class="hc-btn-label">Replay</span>
+                  </button>
+                  ${h.url ? `
+                  <button class="hc-action-btn hc-copy-btn" data-url="${h.url}">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span class="hc-btn-label">Copy URL</span>
+                  </button>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+
+        // Bind replay buttons
+        historyList.querySelectorAll('.hc-replay-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.replayIndex);
+            replayHistoryItem(idx, btn);
+          });
+        });
+
+        // Bind copy buttons
+        historyList.querySelectorAll('.hc-copy-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(btn.dataset.url);
+            const labelEl = btn.querySelector('.hc-btn-label');
+            if (labelEl) {
+              const origText = labelEl.textContent;
+              labelEl.textContent = '✓ Copied!';
+              btn.classList.add('hc-copied');
+              setTimeout(() => { labelEl.textContent = origText; btn.classList.remove('hc-copied'); }, 1600);
+            }
+          });
+        });
+      }
+
+      // ── REPLAY — directly calls fetchProxyData with stored history data ──
+      async function replayHistoryItem(idx, triggerBtn) {
+        const h = requestHistory[idx];
+        if (!h) return;
+
+        // Determine what to call
+        const replaySource   = h.fetchSource || h.source;
+        const replayEndpoint = h.endpoint;
+        const replayParams   = h.params || {};
+        const replayIsRoute  = h.isRoute || false;
+        const replayExample  = h.examplePath || null;
+
+        // Highlight active card
+        activeHistoryIndex = idx;
+        historyList.querySelectorAll('.history-card').forEach(c => c.classList.remove('is-active'));
+        const card = historyList.querySelector(`[data-index="${idx}"]`);
+        if (card) card.classList.add('is-active');
+
+        // Show spinner on replay button
+        let origBtnHTML = null;
+        if (triggerBtn) {
+          origBtnHTML = triggerBtn.innerHTML;
+          triggerBtn.innerHTML = '<div class="hc-spinner"></div> Running…';
+          triggerBtn.disabled = true;
+        }
+
+        // Reset and show loading in the main viewer
+        resetViewer();
+
+        try {
+          let data;
+          if (replayExample) {
+            // Replay using stored example path (auto mode)
+            const cleanPath = replayExample.replace(/^\/+/, '');
+            data = await fetchProxyData(replaySource, cleanPath, {}, false);
+          } else {
+            // Replay using stored params (manual mode or static)
+            data = await fetchProxyData(replaySource, replayEndpoint, replayParams, replayIsRoute);
+          }
+          showOutput(data, replaySource, replayEndpoint);
+        } catch (err) {
+          showOutput(
+            { success: false, error: err.message, duration: '0', targetUrl: '' },
+            replaySource,
+            replayEndpoint
+          );
+        } finally {
+          if (triggerBtn && origBtnHTML) {
+            triggerBtn.innerHTML = origBtnHTML;
+            triggerBtn.disabled = false;
+          }
+        }
+      }
+
+      function pushHistory(item) {
+        item.ts = Date.now();
+        requestHistory.unshift(item);
+        if (requestHistory.length > MAX_HISTORY) requestHistory.pop();
+        localStorage.setItem('nicoo-history', JSON.stringify(requestHistory));
+        renderHistory();
+        // Auto-open drawer on first request
+        if (requestHistory.length === 1) openHistoryDrawer();
+      }
+
+      clearHistBtn?.addEventListener('click', () => {
+        requestHistory = [];
+        activeHistoryIndex = -1;
+        localStorage.removeItem('nicoo-history');
+        renderHistory();
+      });
+
+      // ═══════════════════════════════════════════
+      // SEARCH SOURCES
+      // ═══════════════════════════════════════════
+      const sourceSearchInput = document.getElementById('source-search');
+      const sidebarGroups     = document.querySelectorAll('.sidebar-group');
+
+      sourceSearchInput?.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        
+        sidebarGroups.forEach(group => {
+          let hasVisibleItem = false;
+          const items = group.querySelectorAll('.source-item');
+          
+          items.forEach(item => {
+            const label = item.querySelector('.label')?.textContent.toLowerCase() || '';
+            const sourceId = item.dataset.source.toLowerCase();
+            
+            if (label.includes(query) || sourceId.includes(query)) {
+              item.style.display = 'flex';
+              hasVisibleItem = true;
+            } else {
+              item.style.display = 'none';
+            }
+          });
+
+          // Hide group title if no items match
+          group.style.display = hasVisibleItem ? 'block' : 'none';
+        });
+      });
+
+      // Boot
+      renderHistory();
+    </script>
+  </body>
 </html>

@@ -1,0 +1,1 @@
+{"success":true,"source":"winbu","endpoint":"genre/{slug}","data":[{"statusCode":404,"statusMessage":"Not Found","message":"halaman tidak ditemukan","ok":false,"data":null,"pagination":null}]}

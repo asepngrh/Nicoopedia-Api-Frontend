@@ -1,0 +1,126 @@
+---
+import { sourcesConfig } from '../utils/sources.js';
+
+// Categorize sources directly from their ID
+const groupedSources = sourcesConfig.reduce((acc, source) => {
+  let group = "Anime APIs";
+  let icon = `pulse`; // Default icon name
+
+  const lowerId = source.id.toLowerCase();
+  
+  if (lowerId === 'comic' || lowerId.includes('komik')) {
+    group = "Comic APIs";
+    icon = `book`;
+  } else if (lowerId === 'novel') {
+    group = "Novel APIs";
+    icon = `file-text`;
+  } else if (lowerId === 'anime') {
+    group = "Anime APIs";
+    icon = `pulse`;
+  }
+
+  if (!acc[group]) acc[group] = [];
+  acc[group].push({ ...source, icon });
+  return acc;
+}, {});
+
+const orderedGroups = Object.keys(groupedSources).sort((a,b) => a.localeCompare(b));
+
+const iconMap = {
+  'pulse': `<svg class="source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>`,
+  'book': `<svg class="source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
+  'file-text': `<svg class="source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`
+};
+---
+
+<aside class="sidebar">
+  <div class="sidebar-search">
+    <div class="search-wrapper">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="source-search" placeholder="Search sources..." autocomplete="off" />
+    </div>
+  </div>
+  <div class="sidebar-scroll">
+    {orderedGroups.map(group => (
+      <div class="sidebar-group">
+        <div class="sidebar-group-title">{group}</div>
+        <div class="sidebar-group-items">
+          {groupedSources[group].map((source) => (
+            <button 
+              type="button"
+              class="source-item" 
+              data-source={source.id}
+            >
+              <div class="content">
+                <span set:html={iconMap[source.icon]} />
+                <span class="label">{source.name}</span>
+              </div>
+              <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</aside>
+
+<style>
+  .sidebar-search {
+    padding: 1.25rem 1rem 0.5rem;
+    position: sticky;
+    top: 0;
+    background: var(--bg-card-solid);
+    z-index: 5;
+  }
+  .search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .search-wrapper svg {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .search-wrapper input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 1rem 0.6rem 2.25rem;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    outline: none;
+    transition: all var(--transition-fast);
+  }
+  .search-wrapper input:focus {
+    border-color: var(--accent-primary);
+    background: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .sidebar-scroll {
+    overflow-y: auto;
+    flex: 1;
+    padding-bottom: 2rem;
+  }
+  .source-item .chevron {
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all var(--transition-fast);
+  }
+  .source-item:hover .chevron {
+    opacity: 0.5;
+    transform: translateX(0);
+  }
+  .source-item.active .chevron {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+</style>
