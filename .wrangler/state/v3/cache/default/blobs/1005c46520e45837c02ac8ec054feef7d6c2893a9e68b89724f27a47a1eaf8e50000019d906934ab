@@ -1,1 +1,0 @@
-{"success":true,"source":"otakudesu","endpoint":"search","data":[{"statusCode":400,"statusMessage":"Bad Request","message":"masukkan query parameter: ?q=string","ok":false,"data":null,"pagination":null}]}
