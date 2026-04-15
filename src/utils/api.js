@@ -1,8 +1,8 @@
 const memoryCache = new Map();
 
 export const fetchProxyData = async (source, endpoint, queryParams = {}, isRouteParam = false) => {
-  // Gunakan domain frontend ini sebagai Base URL (misal: https://api-nicoopedia-v2.pages.dev/api)
-  const baseUrl = window.location.origin + "/api";
+  // Gunakan domain frontend ini sebagai Base URL (penting: harus diakhiri garis miring)
+  const baseUrl = window.location.origin + "/api/";
 
   let uiEndpointPath = endpoint;
   let finalEndpoint = endpoint;
@@ -24,9 +24,12 @@ export const fetchProxyData = async (source, endpoint, queryParams = {}, isRoute
     hasRouteParam = true;
   }
 
-  // Bangun path relatif REST murni (misal: /mangabat/latest)
-  let displayPath = `/${source}`;
-  if (uiEndpointPath) displayPath += `/${uiEndpointPath}`;
+  // Bangun path relatif REST murni (misal: mangabat/latest - TANPA garis miring di awal)
+  let displayPath = `${source}`;
+  if (uiEndpointPath) {
+    // Pastikan uiEndpointPath tidak diawali garis miring ganda
+    displayPath += `/${uiEndpointPath.replace(/^\/+/, '')}`;
+  }
   
   // Gabungkan ke target base (menjadi https://[domain-kita]/api/mangabat/latest)
   const targetUrlObj = new URL(displayPath, baseUrl);
