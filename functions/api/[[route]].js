@@ -1,10 +1,9 @@
 /**
  * Production-Grade Stabilized Caching Proxy for NicoopediaBASE
- * Implements: Resilience, Circuit Breaker, Retry, Timeout, and standardized JSON.
+ * Implements: Dynamic REST routing, Resilience, Circuit Breaker, Retry, Timeout, and standardized JSON.
  */
 
 // --- CONFIGURATION ---
-const ORIGIN_URL = "https://cloudflareworkerproxy.dex1.workers.dev";
 const DEFAULT_TIMEOUT = 5000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 500;
@@ -68,7 +67,10 @@ function buildErrorResponse(error, details, status = 502) {
     fallback: true
   }), {
     status: status,
-    headers: { "Content-Type": "application/json" }
+    headers: { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*" 
+    }
   });
 }
 
@@ -142,47 +144,41 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
   return { error: true, message: lastError ? lastError.message : "Unknown error", details };
 }
 
-// --- MAIN HANDLER FOR CLOUDFLARE PAGES FUNCTIONS ---
+// --- MAIN HANDLER FOR CLOUDFLARE PAGES FUNCTIONS (Dynamic Catch-All Route) ---
 
 export async function onRequestGet(context) {
-  const { request, env, waitUntil } = context;
+  const { request, env, waitUntil, params } = context;
   const url = new URL(request.url);
   const startTime = Date.now();
   
+  // Baca Origin URL backend utama dari Environment Variable di Dashboard Cloudflare Pages
+  const originBase = env.WORKER_ORIGIN_URL || "https://cloudflareworkerproxy.dex1.workers.dev";
+  const sankaaKey = env.SANKAA_KEY || "sankaa-private-api-v1";
+
   try {
     // 1. Circuit Breaker Check
     if (checkCircuitBreaker()) {
       return buildErrorResponse("Circuit Breaker Active", "Upstream failing repeatedly", 503);
     }
 
-    const source = url.searchParams.get('source');
-    const endpoint = url.searchParams.get('endpoint');
-    const isRouteParam = url.searchParams.get('isRouteParam') === 'true';
-    const paramValue = url.searchParams.get('paramValue');
-
-    if (!source && source !== "") {
-      return buildErrorResponse("Invalid Request", "Missing source parameter", 400);
+    // 2. Dynamic Route Resolution
+    // Contoh: URL public /api/mangabat/latest akan menghasilkan routeArray: ['mangabat', 'latest']
+    const routeArray = params.route || []; 
+    if (routeArray.length === 0) {
+      return buildErrorResponse("Invalid Request", "Missing API endpoint path (e.g. /api/mangabat/latest)", 400);
     }
 
-    // 2. URL Construction (Prevent double slashes & malformed paths)
-    const safeSource = source.replace(/^\/+|\/+$/g, '');
-    const safeEndpoint = (endpoint || "").replace(/^\/+|\/+$/g, '');
+    const targetPath = routeArray.join('/'); // menghasilkan 'mangabat/latest'
     
-    let targetPath = safeSource;
-    if (safeEndpoint) targetPath += `/${safeEndpoint}`;
-    if (isRouteParam && paramValue) {
-      targetPath += `/${encodeURIComponent(paramValue.replace(/^\/+|\/+$/g, ''))}`;
-    }
-
-    // Final check to ensure no double slashes in the target URL
-    const targetUrl = new URL(`${ORIGIN_URL}/${targetPath}`);
+    // 3. Build target origin URL (menembak Worker utama)
+    const targetUrl = new URL(`${originBase}/${targetPath}`);
+    
+    // Copy/teruskan semua safe query parameters (misal: ?page=2)
     url.searchParams.forEach((val, key) => {
-      if (!['source', 'endpoint', 'isRouteParam', 'paramValue'].includes(key)) {
-        targetUrl.searchParams.append(key, val);
-      }
+      targetUrl.searchParams.append(key, val);
     });
 
-    // 3. Cache Check
+    // 4. Cache Check
     const cacheKeyUrl = normalizeUrl(url);
     const cacheKey = new Request(cacheKeyUrl, { method: 'GET' });
     const cache = caches.default;
@@ -192,23 +188,21 @@ export async function onRequestGet(context) {
     let cacheStatus = response ? "HIT" : "MISS";
 
     if (!response) {
-      // 4. Fetch from Origin with Retry & Timeout logic
-      // Important to use env or context for fetch if bound, else global fetch
+      // 5. Fetch dari Worker Utama
       const fetchResult = await fetchWithRetry(targetUrl.toString(), {
         method: "GET",
         headers: {
-          "X-Sankaa-Key": "sankaa-private-api-v1",
+          "X-Sankaa-Key": sankaaKey,
           "Accept": "application/json",
           "User-Agent": "NicoopediaBASE-StabilizedProxy/2.0"
         }
       });
 
-      // Handle fetch failure
       if (fetchResult.error) {
         return buildErrorResponse("Upstream API unavailable", fetchResult.details);
       }
 
-      // 5. Response Processing & Safety
+      // 6. Parsing Data
       const rawDataText = await fetchResult.text();
       const parsedData = safeJsonParse(rawDataText);
       
@@ -216,6 +210,8 @@ export async function onRequestGet(context) {
         return buildErrorResponse("Malformed API Response", "Invalid JSON from upstream");
       }
 
+      const source = routeArray[0];
+      const endpoint = routeArray.slice(1).join('/');
       const standardizedData = buildSuccessResponse(parsedData, source, endpoint);
       const ttl = getTTL(url.pathname);
 
@@ -223,11 +219,13 @@ export async function onRequestGet(context) {
         status: 200,
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": `public, max-age=${ttl}, stale-while-revalidate=300`
+          "Cache-Control": `public, max-age=${ttl}, stale-while-revalidate=300`,
+          // Berikan CORS header agar user publik bisa memanggil API mu dari web lain via JS
+          "Access-Control-Allow-Origin": "*"
         }
       });
 
-      // 6. Async Cache Storage 
+      // 7. Simpan ke Cache asinkron
       if (!isBypass) {
         if (waitUntil) {
           waitUntil(cache.put(cacheKey, response.clone()));
@@ -237,7 +235,7 @@ export async function onRequestGet(context) {
       }
     }
 
-    // 7. Final Response 
+    // 8. Headers Meta Analytics
     const finalResponse = new Response(response.body, response);
     finalResponse.headers.set("X-Cache", cacheStatus);
     finalResponse.headers.set("X-Response-Time", `${Date.now() - startTime}ms`);
@@ -250,6 +248,12 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({
       success: false,
       error: err.message
-    }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }), { 
+        status: 500, 
+        headers: { 
+            "Content-Type": "application/json",
+             "Access-Control-Allow-Origin": "*" 
+        } 
+    });
   }
 }

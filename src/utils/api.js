@@ -1,19 +1,15 @@
 const memoryCache = new Map();
 
 export const fetchProxyData = async (source, endpoint, queryParams = {}, isRouteParam = false) => {
-  const url = new URL("/api/proxy", window.location.origin);
+  // Gunakan domain frontend ini sebagai Base URL (misal: https://api-nicoopedia-v2.pages.dev/api)
+  const baseUrl = window.location.origin + "/api";
 
-  // Build the targetUrl string to be shown in the UI for the copy endpoint feature.
-  const baseUrl = "https://cloudflareworkerproxy.dex1.workers.dev";
   let uiEndpointPath = endpoint;
+  let finalEndpoint = endpoint;
   let hasRouteParam = false;
 
-  url.searchParams.append('source', source);
-
-  let finalEndpoint = endpoint;
-
+  // Jika endpoint ini membutuhkan sisipan custom route parameter (contoh: /:slug)
   if (isRouteParam) {
-    // Replace all placeholders like /:slug, /{slug}, or :slug with their actual values
     Object.keys(queryParams).forEach(key => {
       const val = queryParams[key];
       if (val !== undefined && val !== "") {
@@ -21,25 +17,21 @@ export const fetchProxyData = async (source, endpoint, queryParams = {}, isRoute
         finalEndpoint = finalEndpoint.replace(routeRegex, encodeURIComponent(val));
       }
     });
-    // Remove any remaining unresolved parameters
+    // Hapus parameter tak terselesaikan
     finalEndpoint = finalEndpoint.replace(/\/[:\{][a-zA-Z0-9_]+[\}]?/g, '');
     
-    url.searchParams.append('endpoint', finalEndpoint);
     uiEndpointPath = finalEndpoint;
-    hasRouteParam = true; // Still marked as true to avoid appending as query string below
-  } else {
-    url.searchParams.append('endpoint', endpoint);
-    Object.keys(queryParams).forEach(key => {
-      if (queryParams[key] !== undefined && queryParams[key] !== "") {
-        url.searchParams.append(key, queryParams[key]);
-      }
-    });
+    hasRouteParam = true;
   }
 
-  // Construct target URL for display
+  // Bangun path relatif REST murni (misal: /mangabat/latest)
   let displayPath = `/${source}`;
   if (uiEndpointPath) displayPath += `/${uiEndpointPath}`;
+  
+  // Gabungkan ke target base (menjadi https://[domain-kita]/api/mangabat/latest)
   const targetUrlObj = new URL(displayPath, baseUrl);
+
+  // Jika bukan route parameter, tambahkan selebihnya sebagai query string (?page=2 dll)
   if (!hasRouteParam) {
     Object.keys(queryParams).forEach(key => {
       if (queryParams[key] !== undefined && queryParams[key] !== "") {
@@ -47,8 +39,10 @@ export const fetchProxyData = async (source, endpoint, queryParams = {}, isRoute
       }
     });
   }
-  const targetUrl = targetUrlObj.toString();
 
+  const targetUrl = targetUrlObj.toString();
+  const url = targetUrlObj; // Panggil proxy menggunakan URL statis kita!
+  
   const cacheKey = url.toString();
   // Return cached result if it exists
   if (memoryCache.has(cacheKey)) {
