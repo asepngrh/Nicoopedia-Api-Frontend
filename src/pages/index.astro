@@ -30,10 +30,10 @@ import HistoryPanel from '../components/HistoryPanel.astro';
     <!-- History drawer lives outside app-container so it overlays all content -->
     <HistoryPanel />
 
-    <script type="module">
-      import { sourcesConfig } from '/src/utils/sources.js';
-      import { fetchProxyData } from '/src/utils/api.js';
-      import { resolveExample, extractExampleHint } from '/src/utils/examples.js';
+    <script>
+      import { sourcesConfig } from '../utils/sources.js';
+      import { fetchProxyData } from '../utils/api.js';
+      import { resolveExample, extractExampleHint } from '../utils/examples.js';
 
       // ═══════════════════════════════════════════
       // STATE
