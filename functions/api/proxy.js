@@ -10,7 +10,6 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 500;
 
 // --- CIRCUIT BREAKER STATE (Isolate level) ---
-// Note: This is per edge node. For high traffic, this provides excellent protection.
 const CB_CONFIG = {
   failureThreshold: 5,
   recoveryTimeout: 30000, // 30s
@@ -21,9 +20,6 @@ let isTripped = false;
 
 // --- HELPERS ---
 
-/**
- * Check if the circuit breaker should stop requests from reaching the origin
- */
 function checkCircuitBreaker() {
   if (isTripped) {
     const now = Date.now();
@@ -38,9 +34,6 @@ function checkCircuitBreaker() {
   return false;
 }
 
-/**
- * Record a failure and potentially trip the circuit
- */
 function recordFailure() {
   failureCount++;
   lastFailureTime = Date.now();
@@ -50,9 +43,6 @@ function recordFailure() {
   }
 }
 
-/**
- * Reset failure count on success
- */
 function recordSuccess() {
   if (failureCount > 0) {
     failureCount = 0;
@@ -60,9 +50,6 @@ function recordSuccess() {
   }
 }
 
-/**
- * Safely parse JSON without throwing
- */
 function safeJsonParse(text) {
   try {
     return JSON.parse(text);
@@ -72,9 +59,6 @@ function safeJsonParse(text) {
   }
 }
 
-/**
- * Standardizes the error JSON structure
- */
 function buildErrorResponse(error, details, status = 502) {
   return new Response(JSON.stringify({
     success: false,
@@ -88,14 +72,9 @@ function buildErrorResponse(error, details, status = 502) {
   });
 }
 
-/**
- * Standardizes the success JSON structure
- */
 function buildSuccessResponse(data, source, endpoint) {
-  // Ensure data is always an array or wrapped in one if it's a single object
   let finalData = data;
   if (data && typeof data === 'object' && !Array.isArray(data)) {
-    // If it's already a standard response from origin, extract the data
     if (data.data && Array.isArray(data.data)) {
       finalData = data.data;
     } else {
@@ -113,18 +92,12 @@ function buildSuccessResponse(data, source, endpoint) {
   };
 }
 
-/**
- * Normalizes URL for cache keys
- */
 function normalizeUrl(url) {
   const normalized = new URL(url.toString());
   normalized.searchParams.sort();
   return normalized.toString();
 }
 
-/**
- * Get dynamic TTL based on path
- */
 function getTTL(pathname) {
   const path = pathname.toLowerCase();
   if (path.includes('/search')) return 30;
@@ -133,9 +106,6 @@ function getTTL(pathname) {
   return 120;
 }
 
-/**
- * Robust fetch with retry, timeout, and failure tracking
- */
 async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
   let lastError;
   let lastStatus;
@@ -150,7 +120,6 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
       const response = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(tId);
       
-      // Treat 5xx as failures for retry logic
       if (response.status >= 500) {
         lastStatus = response.status;
         throw new Error(`Upstream returned ${response.status}`);
@@ -173,10 +142,11 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
   return { error: true, message: lastError ? lastError.message : "Unknown error", details };
 }
 
-// --- MAIN HANDLER ---
+// --- MAIN HANDLER FOR CLOUDFLARE PAGES FUNCTIONS ---
 
-export const GET = async (context) => {
-  const { request, url, locals } = context;
+export async function onRequestGet(context) {
+  const { request, env, waitUntil } = context;
+  const url = new URL(request.url);
   const startTime = Date.now();
   
   try {
@@ -223,6 +193,7 @@ export const GET = async (context) => {
 
     if (!response) {
       // 4. Fetch from Origin with Retry & Timeout logic
+      // Important to use env or context for fetch if bound, else global fetch
       const fetchResult = await fetchWithRetry(targetUrl.toString(), {
         method: "GET",
         headers: {
@@ -232,7 +203,7 @@ export const GET = async (context) => {
         }
       });
 
-      // Handle fetch failure (all retries failed)
+      // Handle fetch failure
       if (fetchResult.error) {
         return buildErrorResponse("Upstream API unavailable", fetchResult.details);
       }
@@ -241,12 +212,10 @@ export const GET = async (context) => {
       const rawDataText = await fetchResult.text();
       const parsedData = safeJsonParse(rawDataText);
       
-      // If JSON is invalid, return safe fallback
       if (parsedData === null) {
         return buildErrorResponse("Malformed API Response", "Invalid JSON from upstream");
       }
 
-      // Wrap in standardized success format
       const standardizedData = buildSuccessResponse(parsedData, source, endpoint);
       const ttl = getTTL(url.pathname);
 
@@ -258,22 +227,21 @@ export const GET = async (context) => {
         }
       });
 
-      // 6. Async Cache Storage (ONLY for successful 200 OK)
+      // 6. Async Cache Storage 
       if (!isBypass) {
-        if (locals.cfContext?.waitUntil) {
-          locals.cfContext.waitUntil(cache.put(cacheKey, response.clone()));
+        if (waitUntil) {
+          waitUntil(cache.put(cacheKey, response.clone()));
         } else {
           await cache.put(cacheKey, response.clone());
         }
       }
     }
 
-    // 7. Final Response Header Modification & Logging
+    // 7. Final Response 
     const finalResponse = new Response(response.body, response);
     finalResponse.headers.set("X-Cache", cacheStatus);
     finalResponse.headers.set("X-Response-Time", `${Date.now() - startTime}ms`);
     
-    // Production Log
     console.log(`[${cacheStatus}] ${url.search} -> ${targetUrl.pathname} (${Date.now() - startTime}ms)`);
 
     return finalResponse;
@@ -284,4 +252,4 @@ export const GET = async (context) => {
       error: err.message
     }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
-};
+}
