@@ -152,8 +152,13 @@ export async function onRequestGet(context) {
   const startTime = Date.now();
   
   // Baca Origin URL backend utama dari Environment Variable di Dashboard Cloudflare Pages
-  const originBase = env.WORKER_ORIGIN_URL || "https://cloudflareworkerproxy.dex1.workers.dev";
-  const sankaaKey = env.SANKAA_KEY || "sankaa-private-api-v1";
+  const originBase = env.WORKER_ORIGIN_URL;
+  const sankaaKey = env.SANKAA_KEY;
+
+  if (!originBase || !sankaaKey) {
+  return buildErrorResponse("Server Configuration Error", "Sistem belum dikonfigurasi dengan Environment Variables", 500);
+  }
+
 
   try {
     // 1. Circuit Breaker Check
