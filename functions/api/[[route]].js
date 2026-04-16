@@ -67,9 +67,9 @@ function buildErrorResponse(error, details, status = 502) {
     fallback: true
   }), {
     status: status,
-    headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*" 
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*"
     }
   });
 }
@@ -115,31 +115,31 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
   for (let i = 0; i <= retries; i++) {
     const controller = new AbortController();
     const tId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
-    
+
     try {
       if (i > 0) console.log(`[Proxy] Retry attempt ${i}/${retries} for ${url}`);
-      
+
       const response = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(tId);
-      
+
       if (response.status >= 500) {
         lastStatus = response.status;
         throw new Error(`Upstream returned ${response.status}`);
       }
-      
+
       recordSuccess();
       return response;
     } catch (err) {
       clearTimeout(tId);
       lastError = err;
       recordFailure();
-      
+
       if (i < retries) {
         await new Promise(r => setTimeout(r, RETRY_DELAY));
       }
     }
   }
-  
+
   const details = lastError && lastError.name === 'AbortError' ? 'timeout' : (lastStatus ? `${lastStatus}` : 'network error');
   return { error: true, message: lastError ? lastError.message : "Unknown error", details };
 }
@@ -150,15 +150,14 @@ export async function onRequestGet(context) {
   const { request, env, waitUntil, params } = context;
   const url = new URL(request.url);
   const startTime = Date.now();
-  
+
   // Baca Origin URL backend utama dari Environment Variable di Dashboard Cloudflare Pages
   const originBase = env.WORKER_ORIGIN_URL;
   const sankaaKey = env.SANKAA_KEY;
 
   if (!originBase || !sankaaKey) {
-  return buildErrorResponse("Server Configuration Error", "Sistem belum dikonfigurasi dengan Environment Variables", 500);
+    return buildErrorResponse("Server Configuration Error", "Sistem belum dikonfigurasi dengan Environment Variables", 500);
   }
-
 
   try {
     // 1. Circuit Breaker Check
@@ -168,16 +167,30 @@ export async function onRequestGet(context) {
 
     // 2. Dynamic Route Resolution
     // Contoh: URL public /api/mangabat/latest akan menghasilkan routeArray: ['mangabat', 'latest']
-    const routeArray = params.route || []; 
+    const routeArray = params.route || [];
     if (routeArray.length === 0) {
       return buildErrorResponse("Invalid Request", "Missing API endpoint path (e.g. /api/mangabat/latest)", 400);
     }
 
-    const targetPath = routeArray.join('/'); // menghasilkan 'mangabat/latest'
-    
+    let targetPath = routeArray.join('/'); // menghasilkan 'mangabat/latest'
+
+    // Menyesuaikan proxy mapping dengan struktur routing origin API (repo_temp2/api/index.ts)
+    const comicSources = [
+      "bacakomik", "komikstation", "maid", "komikindo", "mangakita",
+      "soulscans", "bacaman", "meganei", "softkomik", "westmanga",
+      "kmkindo", "mangasusuku", "kiryuu", "cosmicscans"
+    ];
+    const novelSources = ["sakuranovel"];
+
+    if (comicSources.includes(routeArray[0])) {
+      targetPath = `comic/${targetPath}`;
+    } else if (novelSources.includes(routeArray[0])) {
+      targetPath = `novel/${targetPath}`;
+    }
+
     // 3. Build target origin URL (menembak Worker utama)
     const targetUrl = new URL(`${originBase}/${targetPath}`);
-    
+
     // Copy/teruskan semua safe query parameters (misal: ?page=2)
     url.searchParams.forEach((val, key) => {
       targetUrl.searchParams.append(key, val);
@@ -188,7 +201,7 @@ export async function onRequestGet(context) {
     const cacheKey = new Request(cacheKeyUrl, { method: 'GET' });
     const cache = caches.default;
     const isBypass = (request.method !== 'GET' || url.pathname.match(/\/(auth|user|admin)/));
-    
+
     let response = !isBypass ? await cache.match(cacheKey) : null;
     let cacheStatus = response ? "HIT" : "MISS";
 
@@ -210,7 +223,7 @@ export async function onRequestGet(context) {
       // 6. Parsing Data
       const rawDataText = await fetchResult.text();
       const parsedData = safeJsonParse(rawDataText);
-      
+
       if (parsedData === null) {
         return buildErrorResponse("Malformed API Response", "Invalid JSON from upstream");
       }
@@ -244,7 +257,7 @@ export async function onRequestGet(context) {
     const finalResponse = new Response(response.body, response);
     finalResponse.headers.set("X-Cache", cacheStatus);
     finalResponse.headers.set("X-Response-Time", `${Date.now() - startTime}ms`);
-    
+
     console.log(`[${cacheStatus}] ${url.search} -> ${targetUrl.pathname} (${Date.now() - startTime}ms)`);
 
     return finalResponse;
@@ -253,12 +266,12 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({
       success: false,
       error: err.message
-    }), { 
-        status: 500, 
-        headers: { 
-            "Content-Type": "application/json",
-             "Access-Control-Allow-Origin": "*" 
-        } 
+    }), {
+      status: 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
     });
   }
 }
