@@ -3288,3 +3288,19 @@ export const sourcesConfig = [
     ]
   }
 ];
+
+// Clean formatting: Remove emojis/non-ASCII icons from endpoint names
+sourcesConfig.forEach(category => {
+  if (category.subSources) {
+    category.subSources.forEach(source => {
+      if (source.endpoints) {
+        source.endpoints.forEach(endpoint => {
+          if (endpoint.name) {
+            // Strip any character outside basic printable ASCII (removes all emojis & variation selectors)
+            endpoint.name = endpoint.name.replace(/[^\x20-\x7E]/g, '').trim();
+          }
+        });
+      }
+    });
+  }
+});

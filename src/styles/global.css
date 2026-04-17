@@ -446,12 +446,10 @@ body::before {
   min-width: 0;  /* prevent overflow from flex child */
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* FIX: Prevents footer overlapping and enables internal scroll */
   padding: 2rem 2.5rem;
   gap: 1.75rem;
   background: transparent;
-  scroll-behavior: smooth;
 }
 
 /* ─── Endpoint Selector (Control Panel) ──────────── */
@@ -667,7 +665,7 @@ button {
 /* ─── Response Card ───────────────────────────────── */
 .response-card {
   flex: 1;
-  min-height: 420px;
+  min-height: 0; /* FIX: Allow card to shrink and enable internal scroll */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -908,25 +906,58 @@ button {
   .source-item .content { justify-content: center; }
 }
 
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: var(--header-height);
+  left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 99;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.sidebar-backdrop.is-open {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 640px) {
-  .app-body { flex-direction: column; }
+  :root { --sidebar-width: 260px; }
+  
   .sidebar {
-    width: 100%;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    bottom: 0px;
+    height: calc(100vh - var(--header-height));
+    width: var(--sidebar-width);
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
   }
-  .sidebar-scroll {
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 0.5rem 0.75rem;
-    gap: 0.35rem;
+  .sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.5);
   }
-  .sidebar-group { display: flex; margin: 0; }
-  .sidebar-group-title { display: none; }
-  .source-item { padding: 0.45rem 0.875rem; white-space: nowrap; }
+  
+  .sidebar-backdrop {
+    display: block;
+  }
+
+  /* Restore text labels inside the mobile drawer */
+  .sidebar-group-title, .label, .chevron { display: flex; }
+  .source-item { justify-content: flex-start; padding: 0.625rem 0.875rem; white-space: normal; }
+  .source-item .content { justify-content: flex-start; }
+
+  .mobile-menu-btn {
+    display: flex;
+  }
+
   .main-workspace { padding: 1rem; }
   .action-box { padding: 1.25rem 1rem; }
 }

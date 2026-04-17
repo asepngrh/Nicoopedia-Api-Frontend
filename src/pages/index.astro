@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar.astro';
 import EndpointSelector from '../components/EndpointSelector.astro';
 import ResponseViewer from '../components/ResponseViewer.astro';
 import HistoryPanel from '../components/HistoryPanel.astro';
+import Footer from '../components/Footer.astro';
 ---
 
 <html lang="en" data-theme="dark">
@@ -20,15 +21,46 @@ import HistoryPanel from '../components/HistoryPanel.astro';
     <div class="app-container">
       <Header />
       <div class="app-body">
+        <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
         <Sidebar />
         <main class="main-workspace">
           <EndpointSelector />
           <ResponseViewer />
         </main>
       </div>
+      <Footer />
     </div>
     <!-- History drawer lives outside app-container so it overlays all content -->
     <HistoryPanel />
+
+    <!-- Donate Floating Widget -->
+    <div id="donate-widget" class="donate-widget">
+      <button id="donate-floating-btn" class="donate-floating-btn" aria-label="Donate">
+        <span class="donate-icon-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        </span>
+        <span class="donate-text">Support</span>
+      </button>
+    </div>
+
+    <!-- Donate Modal Overlay -->
+    <div id="donate-modal-overlay" class="donate-modal-overlay">
+      <div class="donate-modal-backdrop"></div>
+      <div class="donate-modal-content">
+        <button id="donate-close-btn" class="donate-close-btn" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        <div class="donate-modal-header">
+          <div class="donate-modal-icon">🍻</div>
+          <h3>Ayo Support Dev</h3>
+        </div>
+        <p>Yang mau mau aja guys</p>
+        <img src="https://i.ibb.co.com/zWS7ZTTs/qr-nicoopedia-socialbuzz.png" alt="QR Code Donasi" class="donate-qr-img" />
+        <a href="https://sociabuzz.com/nicoopedia_/give" target="_blank" rel="noopener noreferrer" class="donate-link-btn">
+          Donate via Sociabuzz
+        </a>
+      </div>
+    </div>
 
     <script>
       import { sourcesConfig } from '../utils/sources.js';
@@ -787,6 +819,31 @@ import HistoryPanel from '../components/HistoryPanel.astro';
       });
 
       // ═══════════════════════════════════════════
+      // MOBILE SIDEBAR LOGIC
+      // ═══════════════════════════════════════════
+      const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+      const sidebar = document.querySelector('.sidebar');
+      const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+      
+      const toggleSidebar = () => {
+        sidebar?.classList.toggle('is-open');
+        sidebarBackdrop?.classList.toggle('is-open');
+      };
+
+      mobileMenuBtn?.addEventListener('click', toggleSidebar);
+      sidebarBackdrop?.addEventListener('click', toggleSidebar);
+
+      // Close sidebar when clicking a source item (for mobile UX)
+      document.querySelectorAll('.source-item').forEach(item => {
+        item.addEventListener('click', () => {
+          if (window.innerWidth <= 640) {
+            sidebar?.classList.remove('is-open');
+            sidebarBackdrop?.classList.remove('is-open');
+          }
+        });
+      });
+
+      // ═══════════════════════════════════════════
       // SEARCH SOURCES
       // ═══════════════════════════════════════════
       const sourceSearchInput = document.getElementById('source-search');
@@ -816,8 +873,252 @@ import HistoryPanel from '../components/HistoryPanel.astro';
         });
       });
 
+      // ═══════════════════════════════════════════
+      // DONATE WIDGET & MODAL LOGIC
+      // ═══════════════════════════════════════════
+      const donateWidget = document.getElementById('donate-widget');
+      const donateBtn = document.getElementById('donate-floating-btn');
+      const donateModal = document.getElementById('donate-modal-overlay');
+      const donateClose = document.getElementById('donate-close-btn');
+
+      // Smart behavior logic
+      let widgetShown = false;
+
+      const showDonateWidget = () => {
+        if (widgetShown) return;
+        widgetShown = true;
+        donateWidget.classList.add('is-visible');
+      };
+
+      // 1. Show unconditionally after 3.5 seconds graceful delay (SaaS standard)
+      setTimeout(showDonateWidget, 3500);
+
+      const handleScroll = (e) => {
+        if (widgetShown) return;
+        // 2. Or show if they scroll ANY content (JSON area) past 100px before the 3.5s
+        if (e.target && e.target.scrollTop > 100) {
+          showDonateWidget();
+        }
+      };
+
+      document.addEventListener('scroll', handleScroll, true); 
+
+
+      donateBtn?.addEventListener('click', () => {
+        donateModal.classList.add('is-visible');
+      });
+
+      donateClose?.addEventListener('click', () => {
+        donateModal.classList.remove('is-visible');
+      });
+
+      donateModal?.addEventListener('click', (e) => {
+        if (e.target.classList.contains('donate-modal-backdrop') || e.target === donateModal) {
+          donateModal.classList.remove('is-visible');
+        }
+      });
+
       // Boot
       renderHistory();
     </script>
+
+<style is:global>
+  /* ═══════════════════════════════════════════ */
+  /* DONATE WIDGET & MODAL                       */
+  /* ═══════════════════════════════════════════ */
+  .donate-widget {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 900;
+    transform: translateY(60px) scale(0.9);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .donate-widget.is-visible {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .donate-floating-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(244, 63, 94, 0.25);
+    border-radius: 999px;
+    padding: 0.5rem 1.25rem 0.5rem 0.5rem;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .donate-floating-btn:hover {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(244, 63, 94, 0.5);
+    box-shadow: 0 8px 25px rgba(244, 63, 94, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    transform: translateY(-2px);
+  }
+  .donate-floating-btn:active {
+    transform: translateY(0) scale(0.96);
+  }
+
+  .donate-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+    animation: smoothPulse 4s infinite ease-in-out;
+  }
+  @keyframes smoothPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.3); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+  }
+
+  .donate-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .donate-modal-backdrop {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+  }
+  .donate-modal-overlay.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .donate-modal-content {
+    background: var(--surface);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    padding: 2.5rem 2rem;
+    width: 90%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    transform: scale(0.95) translateY(10px);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.02) inset;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .donate-modal-overlay.is-visible .donate-modal-content {
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+  }
+
+  .donate-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .donate-close-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    border-color: rgba(255,255,255,0.1);
+    transform: rotate(90deg);
+  }
+
+  .donate-modal-header {
+    text-align: center;
+    margin-bottom: 0.75rem;
+  }
+  .donate-modal-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    animation: bounceCoffee 3s infinite ease-in-out;
+  }
+  @keyframes bounceCoffee {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  .donate-modal-content h3 {
+    margin: 0;
+    font-size: 1.35rem;
+    color: var(--text);
+    font-weight: 700;
+  }
+  .donate-modal-content p {
+    margin: 0 0 1.75rem 0;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .donate-qr-img {
+    width: 220px;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 1rem;
+    margin-bottom: 1.75rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: white;
+    padding: 0.75rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .donate-qr-img:hover {
+    transform: scale(1.03);
+  }
+
+  .donate-link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.1);
+    text-decoration: none;
+    padding: 0.875rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .donate-link-btn:hover {
+    background: #f43f5e;
+    color: white;
+    border-color: #f43f5e;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(244, 63, 94, 0.3);
+  }
+  .donate-link-btn:active {
+    transform: translateY(0) scale(0.98);
+  }
+</style>
   </body>
 </html>
