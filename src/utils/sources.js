@@ -1706,17 +1706,9 @@ export const sourcesConfig = [
         "fetchSource": "lk21",
         "endpoints": [
           {
-            "id": "view-data",
-            "name": "📊 Main View Data",
-            "originalRoute": "/view-data",
-            "hasQuery": false,
-            "queryParam": "",
-            "isRouteParam": false,
-            "example": "/view-data"
-          },
-          {
             "id": "search/{title}",
-            "name": "🔍 Cari Film / Series",
+            "group": "Search & Discover",
+            "name": "Cari Film / Drama (Gunakan :title)",
             "originalRoute": "/search/{title}",
             "hasQuery": true,
             "queryParam": "title",
@@ -1725,7 +1717,8 @@ export const sourcesConfig = [
           },
           {
             "id": "movies",
-            "name": "🎬 Film Terbaru",
+            "group": "Movies",
+            "name": "Mendapatkan Film Terbaru",
             "originalRoute": "/movies",
             "hasQuery": true,
             "queryParam": "page",
@@ -1734,7 +1727,8 @@ export const sourcesConfig = [
           },
           {
             "id": "popular/movies",
-            "name": "🔥 Film Populer",
+            "group": "Movies",
+            "name": "Mendapatkan Film Populer",
             "originalRoute": "/popular/movies",
             "hasQuery": true,
             "queryParam": "page",
@@ -1743,7 +1737,8 @@ export const sourcesConfig = [
           },
           {
             "id": "recent-release/movies",
-            "name": "🆕 Rilis Terbaru",
+            "group": "Movies",
+            "name": "Mendapatkan Film Rilis Terbaru",
             "originalRoute": "/recent-release/movies",
             "hasQuery": true,
             "queryParam": "page",
@@ -1752,7 +1747,8 @@ export const sourcesConfig = [
           },
           {
             "id": "top-rated/movies",
-            "name": "⭐ Rating Tertinggi",
+            "group": "Movies",
+            "name": "Mendapatkan Film Rating Tertinggi",
             "originalRoute": "/top-rated/movies",
             "hasQuery": true,
             "queryParam": "page",
@@ -1761,7 +1757,8 @@ export const sourcesConfig = [
           },
           {
             "id": "movies/{id}",
-            "name": "ℹ️ Detail Film",
+            "group": "Movies",
+            "name": "Detail Film (Gunakan :id)",
             "originalRoute": "/movies/{id}",
             "hasQuery": true,
             "queryParam": "id",
@@ -1770,7 +1767,8 @@ export const sourcesConfig = [
           },
           {
             "id": "movies/{id}/stream",
-            "name": "▶️ Streaming Film",
+            "group": "Movies",
+            "name": "Link Stream Film (Gunakan :id)",
             "originalRoute": "/movies/{id}/stream",
             "hasQuery": true,
             "queryParam": "id",
@@ -1779,7 +1777,8 @@ export const sourcesConfig = [
           },
           {
             "id": "movies/{id}/download",
-            "name": "📥 Download Film",
+            "group": "Movies",
+            "name": "Link Download Film (Gunakan :id)",
             "originalRoute": "/movies/{id}/download",
             "hasQuery": true,
             "queryParam": "id",
@@ -1788,7 +1787,8 @@ export const sourcesConfig = [
           },
           {
             "id": "drama",
-            "name": "📺 Drama Terbaru",
+            "group": "Drama & Series",
+            "name": "Mendapatkan Drama/Series Terbaru (Global)",
             "originalRoute": "/drama",
             "hasQuery": true,
             "queryParam": "page",
@@ -1797,7 +1797,8 @@ export const sourcesConfig = [
           },
           {
             "id": "drama/{category}",
-            "name": "📂 Drama per Kategori",
+            "group": "Drama & Series",
+            "name": "Mendapatkan Drama per Kategori",
             "originalRoute": "/drama/{category}",
             "hasQuery": true,
             "queryParam": "category",
@@ -1806,7 +1807,8 @@ export const sourcesConfig = [
           },
           {
             "id": "popular/drama",
-            "name": "🌟 Drama Populer",
+            "group": "Drama & Series",
+            "name": "Mendapatkan Drama Terpopuler",
             "originalRoute": "/popular/drama",
             "hasQuery": true,
             "queryParam": "page",
@@ -1815,7 +1817,8 @@ export const sourcesConfig = [
           },
           {
             "id": "drama/{id}",
-            "name": "ℹ️ Detail Drama",
+            "group": "Drama & Series",
+            "name": "Detail Drama / Series (Judul, Season, Eps)",
             "originalRoute": "/drama/{id}",
             "hasQuery": true,
             "queryParam": "id",
@@ -1824,7 +1827,8 @@ export const sourcesConfig = [
           },
           {
             "id": "drama/{id}/stream",
-            "name": "▶️ Streaming Series",
+            "group": "Drama & Series",
+            "name": "Link Stream Drama (Pilih Season & Eps)",
             "originalRoute": "/drama/{id}/stream",
             "hasQuery": true,
             "queryParam": "id",
@@ -1833,7 +1837,8 @@ export const sourcesConfig = [
           },
           {
             "id": "drama/{id}/download",
-            "name": "📥 Download Series",
+            "group": "Drama & Series",
+            "name": "Link Download Drama",
             "originalRoute": "/drama/{id}/download",
             "hasQuery": true,
             "queryParam": "id",
@@ -1842,7 +1847,8 @@ export const sourcesConfig = [
           },
           {
             "id": "genres",
-            "name": "🏷️ Semua Genre",
+            "group": "Search & Discover",
+            "name": "Daftar Semua Genre",
             "originalRoute": "/genres",
             "hasQuery": false,
             "queryParam": "",
@@ -1851,7 +1857,8 @@ export const sourcesConfig = [
           },
           {
             "id": "genres/{genre}",
-            "name": "🎭 Berdasarkan Genre",
+            "group": "Search & Discover",
+            "name": "Berdasarkan Genre (Gunakan :genre)",
             "originalRoute": "/genres/{genre}",
             "hasQuery": true,
             "queryParam": "genre",
@@ -1860,7 +1867,8 @@ export const sourcesConfig = [
           },
           {
             "id": "countries",
-            "name": "🌍 Semua Negara",
+            "group": "Search & Discover",
+            "name": "Daftar Semua Negara",
             "originalRoute": "/countries",
             "hasQuery": false,
             "queryParam": "",
@@ -1869,7 +1877,8 @@ export const sourcesConfig = [
           },
           {
             "id": "countries/{country}",
-            "name": "🏳️ Berdasarkan Negara",
+            "group": "Search & Discover",
+            "name": "Berdasarkan Negara (Gunakan :country)",
             "originalRoute": "/countries/{country}",
             "hasQuery": true,
             "queryParam": "country",
@@ -1878,7 +1887,8 @@ export const sourcesConfig = [
           },
           {
             "id": "years",
-            "name": "📅 Semua Tahun",
+            "group": "Search & Discover",
+            "name": "Daftar Semua Tahun",
             "originalRoute": "/years",
             "hasQuery": false,
             "queryParam": "",
@@ -1887,7 +1897,8 @@ export const sourcesConfig = [
           },
           {
             "id": "years/{year}",
-            "name": "📆 Berdasarkan Tahun",
+            "group": "Search & Discover",
+            "name": "Berdasarkan Tahun (Gunakan :year)",
             "originalRoute": "/years/{year}",
             "hasQuery": true,
             "queryParam": "year",

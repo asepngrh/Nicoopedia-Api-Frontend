@@ -202,25 +202,46 @@ import Footer from '../components/Footer.astro';
 
         const fetchSource = getResolvedFetchSource();
 
+        // Group endpoints if "group" property exists
+        const groups = {};
         endpointsArray.forEach(ep => {
-          const opt = document.createElement('option');
-          opt.value = ep.id;
+          const groupName = ep.group || '';
+          if (!groups[groupName]) groups[groupName] = [];
+          groups[groupName].push(ep);
+        });
 
-          // Build label with example hint for parameterized endpoints
-          const example = resolveExample(fetchSource, ep);
-          const hint = extractExampleHint(example);
-          if (ep.hasQuery && hint) {
-            opt.textContent = `${ep.name}  (e.g. ${hint})`;
-          } else {
-            opt.textContent = ep.name;
+        const groupKeys = Object.keys(groups);
+
+        groupKeys.forEach(groupName => {
+          let container = endpointSelect;
+          
+          if (groupName) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = groupName;
+            endpointSelect.appendChild(optgroup);
+            container = optgroup;
           }
 
-          opt.dataset.hasQuery     = ep.hasQuery ?? false;
-          opt.dataset.queryParam   = ep.queryParam ?? '';
-          opt.dataset.isRouteParam = ep.isRouteParam ?? false;
-          opt.dataset.originalRoute = ep.originalRoute ?? '';
-          opt.dataset.example      = example;
-          endpointSelect.appendChild(opt);
+          groups[groupName].forEach(ep => {
+            const opt = document.createElement('option');
+            opt.value = ep.id;
+
+            // Build label with example hint for parameterized endpoints
+            const example = resolveExample(fetchSource, ep);
+            const hint = extractExampleHint(example);
+            if (ep.hasQuery && hint) {
+              opt.textContent = `${ep.name}  (e.g. ${hint})`;
+            } else {
+              opt.textContent = ep.name;
+            }
+
+            opt.dataset.hasQuery     = ep.hasQuery ?? false;
+            opt.dataset.queryParam   = ep.queryParam ?? '';
+            opt.dataset.isRouteParam = ep.isRouteParam ?? false;
+            opt.dataset.originalRoute = ep.originalRoute ?? '';
+            opt.dataset.example      = example;
+            container.appendChild(opt);
+          });
         });
       }
 
