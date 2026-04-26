@@ -1697,6 +1697,208 @@ export const sourcesConfig = [
     ]
   },
   {
+    "id": "movies",
+    "name": "Movies",
+    "subSources": [
+      {
+        "id": "lk21",
+        "name": "Layarkaca 21",
+        "fetchSource": "lk21",
+        "endpoints": [
+          {
+            "id": "view-data",
+            "name": "📊 Main View Data",
+            "originalRoute": "/view-data",
+            "hasQuery": false,
+            "queryParam": "",
+            "isRouteParam": false,
+            "example": "/view-data"
+          },
+          {
+            "id": "search/{title}",
+            "name": "🔍 Cari Film / Series",
+            "originalRoute": "/search/{title}",
+            "hasQuery": true,
+            "queryParam": "title",
+            "isRouteParam": true,
+            "example": "/search/avengers"
+          },
+          {
+            "id": "movies",
+            "name": "🎬 Film Terbaru",
+            "originalRoute": "/movies",
+            "hasQuery": true,
+            "queryParam": "page",
+            "isRouteParam": false,
+            "example": "/movies?page=1"
+          },
+          {
+            "id": "popular/movies",
+            "name": "🔥 Film Populer",
+            "originalRoute": "/popular/movies",
+            "hasQuery": true,
+            "queryParam": "page",
+            "isRouteParam": false,
+            "example": "/popular/movies?page=1"
+          },
+          {
+            "id": "recent-release/movies",
+            "name": "🆕 Rilis Terbaru",
+            "originalRoute": "/recent-release/movies",
+            "hasQuery": true,
+            "queryParam": "page",
+            "isRouteParam": false,
+            "example": "/recent-release/movies?page=1"
+          },
+          {
+            "id": "top-rated/movies",
+            "name": "⭐ Rating Tertinggi",
+            "originalRoute": "/top-rated/movies",
+            "hasQuery": true,
+            "queryParam": "page",
+            "isRouteParam": false,
+            "example": "/top-rated/movies?page=1"
+          },
+          {
+            "id": "movies/{id}",
+            "name": "ℹ️ Detail Film",
+            "originalRoute": "/movies/{id}",
+            "hasQuery": true,
+            "queryParam": "id",
+            "isRouteParam": true,
+            "example": "/movies/godzilla-x-kong-the-new-empire-2024"
+          },
+          {
+            "id": "movies/{id}/stream",
+            "name": "▶️ Streaming Film",
+            "originalRoute": "/movies/{id}/stream",
+            "hasQuery": true,
+            "queryParam": "id",
+            "isRouteParam": true,
+            "example": "/movies/godzilla-x-kong-the-new-empire-2024/stream"
+          },
+          {
+            "id": "movies/{id}/download",
+            "name": "📥 Download Film",
+            "originalRoute": "/movies/{id}/download",
+            "hasQuery": true,
+            "queryParam": "id",
+            "isRouteParam": true,
+            "example": "/movies/godzilla-x-kong-the-new-empire-2024/download"
+          },
+          {
+            "id": "drama",
+            "name": "📺 Drama Terbaru",
+            "originalRoute": "/drama",
+            "hasQuery": true,
+            "queryParam": "page",
+            "isRouteParam": false,
+            "example": "/drama?page=1"
+          },
+          {
+            "id": "drama/{category}",
+            "name": "📂 Drama per Kategori",
+            "originalRoute": "/drama/{category}",
+            "hasQuery": true,
+            "queryParam": "category",
+            "isRouteParam": true,
+            "example": "/drama/korea"
+          },
+          {
+            "id": "popular/drama",
+            "name": "🌟 Drama Populer",
+            "originalRoute": "/popular/drama",
+            "hasQuery": true,
+            "queryParam": "page",
+            "isRouteParam": false,
+            "example": "/popular/drama?page=1"
+          },
+          {
+            "id": "drama/{id}",
+            "name": "ℹ️ Detail Drama",
+            "originalRoute": "/drama/{id}",
+            "hasQuery": true,
+            "queryParam": "id",
+            "isRouteParam": true,
+            "example": "/drama/squid-game-2021"
+          },
+          {
+            "id": "drama/{id}/stream",
+            "name": "▶️ Streaming Series",
+            "originalRoute": "/drama/{id}/stream",
+            "hasQuery": true,
+            "queryParam": "id",
+            "isRouteParam": true,
+            "example": "/drama/squid-game-2021/stream?season=1&episode=1"
+          },
+          {
+            "id": "drama/{id}/download",
+            "name": "📥 Download Series",
+            "originalRoute": "/drama/{id}/download",
+            "hasQuery": true,
+            "queryParam": "id",
+            "isRouteParam": true,
+            "example": "/drama/squid-game-2021/download"
+          },
+          {
+            "id": "genres",
+            "name": "🏷️ Semua Genre",
+            "originalRoute": "/genres",
+            "hasQuery": false,
+            "queryParam": "",
+            "isRouteParam": false,
+            "example": "/genres"
+          },
+          {
+            "id": "genres/{genre}",
+            "name": "🎭 Berdasarkan Genre",
+            "originalRoute": "/genres/{genre}",
+            "hasQuery": true,
+            "queryParam": "genre",
+            "isRouteParam": true,
+            "example": "/genres/action"
+          },
+          {
+            "id": "countries",
+            "name": "🌍 Semua Negara",
+            "originalRoute": "/countries",
+            "hasQuery": false,
+            "queryParam": "",
+            "isRouteParam": false,
+            "example": "/countries"
+          },
+          {
+            "id": "countries/{country}",
+            "name": "🏳️ Berdasarkan Negara",
+            "originalRoute": "/countries/{country}",
+            "hasQuery": true,
+            "queryParam": "country",
+            "isRouteParam": true,
+            "example": "/countries/south-korea"
+          },
+          {
+            "id": "years",
+            "name": "📅 Semua Tahun",
+            "originalRoute": "/years",
+            "hasQuery": false,
+            "queryParam": "",
+            "isRouteParam": false,
+            "example": "/years"
+          },
+          {
+            "id": "years/{year}",
+            "name": "📆 Berdasarkan Tahun",
+            "originalRoute": "/years/{year}",
+            "hasQuery": true,
+            "queryParam": "year",
+            "isRouteParam": true,
+            "example": "/years/2024"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "id": "comic",
     "name": "Comic",
     "subSources": [
@@ -2283,9 +2485,9 @@ export const sourcesConfig = [
         ]
       },
       {
-        "id": "soulscans",
+        "id": "soulscan",
         "name": "SoulScans",
-        "fetchSource": "soulscans",
+        "fetchSource": "soulscan",
         "endpoints": [
           {
             "id": "home",
@@ -3122,9 +3324,9 @@ export const sourcesConfig = [
         ]
       },
       {
-        "id": "cosmicscans",
+        "id": "cosmic",
         "name": "Cosmic Scans",
-        "fetchSource": "cosmicscans",
+        "fetchSource": "cosmic",
         "endpoints": [
           {
             "id": "home",
@@ -3282,6 +3484,49 @@ export const sourcesConfig = [
             "queryParam": "",
             "isRouteParam": false,
             "example": "/daftar-novel"
+          }
+        ]
+      },
+      {
+        "id": "novelcool",
+        "name": "NovelCool",
+        "fetchSource": "novelcool",
+        "endpoints": [
+          {
+            "id": "home",
+            "name": "🏠 Home / Latest",
+            "originalRoute": "/home",
+            "hasQuery": true,
+            "queryParam": "page",
+            "isRouteParam": false,
+            "example": "/home?page=1"
+          },
+          {
+            "id": "search",
+            "name": "🔍 Search Novel",
+            "originalRoute": "/search",
+            "hasQuery": true,
+            "queryParam": "q",
+            "isRouteParam": false,
+            "example": "/search?q=majo"
+          },
+          {
+            "id": "genre/:slug",
+            "name": "🎭 Filter by Genre",
+            "originalRoute": "/genre/:slug",
+            "hasQuery": true,
+            "queryParam": "slug",
+            "isRouteParam": true,
+            "example": "/genre/action"
+          },
+          {
+            "id": "read/:slug",
+            "name": "📖 Read Chapter",
+            "originalRoute": "/read/:slug",
+            "hasQuery": true,
+            "queryParam": "slug",
+            "isRouteParam": true,
+            "example": "/read/example"
           }
         ]
       }

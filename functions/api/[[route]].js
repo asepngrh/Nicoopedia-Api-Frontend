@@ -177,10 +177,10 @@ export async function onRequestGet(context) {
     // Menyesuaikan proxy mapping dengan struktur routing origin API (repo_temp2/api/index.ts)
     const comicSources = [
       "bacakomik", "komikstation", "maid", "komikindo", "mangakita",
-      "soulscans", "bacaman", "meganei", "softkomik", "westmanga",
-      "kmkindo", "mangasusuku", "kiryuu", "cosmicscans"
+      "soulscan", "soulscans", "bacaman", "meganei", "softkomik", "westmanga",
+      "kmkindo", "mangasusuku", "kiryuu", "cosmic", "cosmicscans"
     ];
-    const novelSources = ["sakuranovel"];
+    const novelSources = ["sakuranovel", "novelcool"];
 
     if (comicSources.includes(routeArray[0])) {
       targetPath = `comic/${targetPath}`;
